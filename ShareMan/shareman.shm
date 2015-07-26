@@ -1,0 +1,403 @@
+﻿# This is the command file for Future Share Manager (ShareMan.exe). 
+# Entries in here are processed sequentially
+#
+# format is:
+#   [command]||[parameter]->[value]||[parameter]->[value]...
+#
+# Note: you can also put spaces around the || and -> to make it more readable if you want to:
+#   [command] || [parameter] -> [value] || [parameter] -> [value]...
+#
+#
+# available [command]'s are:
+#   Note: all parameters marked with an asterix (*) are optional.
+#         the order in which the parameters are placed does not matter at all.
+#
+#	autoshare			Will automatically share subdirectories from a given path.
+#						The share names will be whatever the subfolder names are.
+#						Can make normal shares or hidden shares.
+#
+#						If subDirMatch parameter is entered, then only subdirectories that match that given pattern will be auto-shared.
+#						By default subDirMatch matches all directories under the rootDir. So you only need to specify this if
+#						you want to narrow the selection down to certain folders using a wildcard pattern.
+#
+#                       You can also specify if you want the rootDir to be shared or not. Default is false,
+#						meaning it is not shared. If you specify true, it will be shared using the folder name as the share 
+#						name, or you can specify the rootShareName parameter to give it a specific share name.
+#
+#						note: ShareMan will only try auto-share the directories if the rootDir path exists
+#                             this way it will work in a clustered environment without issue 
+#						      (where drives/paths can come and go on each node without warning).               
+#
+#						Parameters:
+#							rootDir         ->  [path]
+#							*subDirMatch    ->  [pattern] default = * (all directories)
+#							fileServerName  ->  [name of the fileserver the shares belong to]
+#							hidden          ->  [true or false]
+#							*shareRoot      ->  [true or false] default = false
+#							*hideRootShare	->	[true or false] default = false
+#                           *rootShareName  ->  [what to name the root share] default is the name of the directory
+#							*registerDFS	->	[true or false] default is false
+#							*registerRootDFS->	[true or false] default is false. this decides if we should also register the root share in DFS or not.
+#							*dfsRoot		->	[dfsRootUncPath] default is null. if you specify registerDFS, this MUST also be specified
+#							*disableCSC		->  [true or false] default is true. this disables Client Side Caching on all auto-created shares.
+#							*cscType		->	[manual, optimized, auto]. if disableCSC is false, this choose the CSC type. default is manual.
+#             
+#	share				share will share a single path
+#						can make normal shares and hidden shares
+#
+#						note: ShareMan will only try and share it if the path exists
+#                             this way it will work in a clustered environment without issue.  
+#						      (where drives/paths can come and go on each node without warning).
+#
+#						Parameters:
+#							path				-> [full path to the folder to share]
+#							shareName			-> [what to name the share]
+#							*shareDescription	-> [a description for this share] (default is blank)
+#							fileServerName		-> [name of the fileserver
+#							hidden				-> [true or false]
+#							*registerDFS	->	[true or false] default is false
+#							*dfsRoot		->	[dfsRootUncPath] default is null. if you specify registerDFS, this MUST also be specified
+#							*disableCSC		->  [true or false] default is true. this disables Client Side Caching on all auto-created shares.
+#							*cscType		->	[manual, optimized, auto]. if disableCSC is false, this choose the CSC type. default is manual.
+#
+# Examples:
+#  let's say we have a fileserver called FS01 with a directory structure like this:
+#    k:\MP01\Homedir\NA\user1\
+#                   \NA\user2\
+#	                \NA\user3\
+#                   ...
+#	                \NA\user279\
+#
+#	 k:\MP02\Homedir\ASIA\user1\
+#	                \ASIA\user2\
+#	                \ASIA\user3\
+#	                ...
+#	                \ASIA\user368\
+#
+#  We want to share all the users directories automatically, and make them hidden, 
+#  as well as each K:\MP## directory - but we want the share names to be different for the K:\MP## directories
+#  to do this we will use a couple of commands: autoshare and share:
+#      autoshare || rootDir -> k:\MP01\Homedir\NA   || fileServerName -> FS01 || hidden -> true
+#      autoshare || rootDir -> k:\MP01\Homedir\ASIA || fileServerName -> FS01 || hidden -> true
+#      autoshare || rootDir -> k:\MP02\Homedir\NA   || fileServerName -> FS01 || hidden -> true
+#      autoshare || rootDir -> k:\MP02\Homedir\ASIA || fileServerName -> FS01 || hidden -> true
+#
+#      share || path -> k:\MP01 || shareName -> MP-01 || fileServerName -> FS01 || hidden -> false
+#      share || path -> k:\MP02 || shareName -> MP-02 || fileServerName -> FS01 || hidden -> false
+#
+# If we didn't want MP## to have different names, we could have used autoshare with hidden->false to create them too..
+#       and if there were other directories in the K:\ drive that we didn't want to autoshare, we can narrow down the selection by using the subDirMatch parameter
+#       example:
+#          autoshare || path -> k:\ || fileServerName -> FS01 || hidden -> false || subDirMatch -> MP*
+#
+# If we wanted each of the NA, and ASIA directories in all the MP* Homedir folders to be shared as well, we could use:
+#      autoshare || rootDir -> k:\MP01\Homedir\NA   || fileServerName -> FS01 || hidden -> true || shareRoot -> true || rootShareName -> MP01-NA
+#      autoshare || rootDir -> k:\MP01\Homedir\ASIA || fileServerName -> FS01 || hidden -> true || shareRoot -> true || rootShareName -> MP01-ASIA
+#
+# NOTE: if you use shareRoot, and the directory structure is similar to the above, you MUST specify the rootShareName parameter so that each root
+#       will be shared using a different name. ShareMan will not share anything that will possibly cause duplicate share names (windows won't allow that anyways).
+#		if you know that each folder in your directory structure will be different, then shareRoot -> true with the default rootShareName (which is the name
+#       of the directory) may work for you - just be carefull. ShareMan will through errors and tell you about duplicate share names.
+
+#
+##
+#### dev shares
+##
+#
+
+#
+#
+# for %i in ( europe_sop testshare testshare$ test.user1$ test.user2$ test.user3$ test.user4$ test.user5$ test.user6$ test.user10$ test.user20$ test.user30$ test.user40$ test.user50$ test.user60$ mp01-asia$ mp01-asia mp01-eur$ mp01-eur mp01-k mp01-na mp01-na$ mp01-asia mp01-asia$ mp02-k mp02-asia$ mp02-asia mp02-na$ mp02-na mp02-eur$ mp02-eur) do @net share  %i /DELETE /Y
+autoshare || rootDir -> D:\FileServer\MP01-K\HomeDir\Asia || fileServerName -> montrewkn69859 || hidden -> true || shareRoot -> true || rootShareName -> MP01-ASIA	|| hideRootShare -> true	|| registerdfs -> false		|| dfsroot -> \\montreappmgmt02\test
+autoshare || rootDir -> D:\FileServer\MP01-K\HomeDir\Eur  || fileServerName -> montrewkn69859 || hidden -> true || shareRoot -> true || rootShareName -> MP01-Eur	|| hideRootShare -> false	|| registerdfs -> false		|| dfsroot -> \\montreappmgmt02\test
+autoshare || rootDir -> D:\FileServer\MP01-K\HomeDir\Na   || fileServerName -> montrewkn69859 || hidden -> true || shareRoot -> true || rootShareName -> MP01-Na								|| registerdfs -> false		|| dfsroot -> \\montreappmgmt02\test
+autoshare || rootDir -> D:\FileServer\MP02-K\HomeDir\Asia || fileServerName -> montrewkn69859 || hidden -> true || shareRoot -> true || rootShareName -> MP02-ASIA								|| registerdfs -> false		|| dfsroot -> \\montreappmgmt02\test
+autoshare || rootDir -> D:\FileServer\MP02-K\HomeDir\Eur  || fileServerName -> montrewkn69859 || hidden -> true || shareRoot -> true || rootShareName -> MP02-Eur								|| registerdfs -> false		|| dfsroot -> \\montreappmgmt02\test
+autoshare || rootDir -> D:\FileServer\MP02-K\HomeDir\Na   || fileServerName -> montrewkn69859 || hidden -> true || shareRoot -> true || rootShareName -> MP02-Na								|| registerdfs -> false		|| dfsroot -> \\montreappmgmt02\test
+autoshare || rootDir -> D:\FileServer || fileServerName -> montrewkn69859 || hidden -> false || subDirMatch -> MP*
+share     || path -> D:\FileServer\share || shareName -> TestShare || hidden -> true || FILESERVERname -> montrewkn69859 || disablecsc -> true || shareDesCripTION ->               this is a test descipriont for me share testing spaces etc..............|!
+share || path -> D:\FileServer\MP02-K\eurdepartments\share_pt_eur\european quality assurance || shareName -> Europe_Sop	|| hidden -> false	|| fileServerName -> montrewkn69859
+#
+##
+#### K drive
+##
+#
+
+#### Homedir Shares
+autoshare || rootDir -> K:\MP02-K\Homedir\ASIA || fileServerName -> CLUS01FPS01 || hidden -> true || shareRoot -> true || rootShareName -> ASIAMP02K	|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> K:\MP02-K\Homedir\EUR  || fileServerName -> CLUS01FPS01 || hidden -> true || shareRoot -> true || rootShareName -> EURMP02K		|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> K:\MP02-K\Homedir\NA   || fileServerName -> CLUS01FPS01 || hidden -> true || shareRoot -> true || rootShareName -> NAMP02K		|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> K:\MP03-K\Homedir\ASIA || fileServerName -> CLUS01FPS01 || hidden -> true || shareRoot -> true || rootShareName -> ASIAMP03K	|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> K:\MP03-K\Homedir\EUR  || fileServerName -> CLUS01FPS01 || hidden -> true || shareRoot -> true || rootShareName -> EURMP03K		|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> K:\MP03-K\Homedir\NA   || fileServerName -> CLUS01FPS01 || hidden -> true || shareRoot -> true || rootShareName -> NAMP03K		|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> K:\MP04-K\Homedir\ASIA || fileServerName -> CLUS01FPS01 || hidden -> true || shareRoot -> true || rootShareName -> ASIAMP04K	|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> K:\MP04-K\Homedir\EUR  || fileServerName -> CLUS01FPS01 || hidden -> true || shareRoot -> true || rootShareName -> EURMP04K		|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> K:\MP04-K\Homedir\NA   || fileServerName -> CLUS01FPS01 || hidden -> true || shareRoot -> true || rootShareName -> NAMP04K		|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> K:\MP05-K\Homedir\ASIA || fileServerName -> CLUS01FPS01 || hidden -> true || shareRoot -> true || rootShareName -> ASIAMP05K	|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> K:\MP05-K\Homedir\EUR  || fileServerName -> CLUS01FPS01 || hidden -> true || shareRoot -> true || rootShareName -> EURMP05K		|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> K:\MP05-K\Homedir\NA   || fileServerName -> CLUS01FPS01 || hidden -> true || shareRoot -> true || rootShareName -> NAMP05K		|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> K:\MP06-K\Homedir\ASIA || fileServerName -> CLUS01FPS01 || hidden -> true || shareRoot -> true || rootShareName -> ASIAMP06K	|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> K:\MP06-K\Homedir\EUR  || fileServerName -> CLUS01FPS01 || hidden -> true || shareRoot -> true || rootShareName -> EURMP06K		|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> K:\MP06-K\Homedir\NA   || fileServerName -> CLUS01FPS01 || hidden -> true || shareRoot -> true || rootShareName -> NAMP06K		|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> K:\MP08-K\Homedir\ASIA || fileServerName -> CLUS01FPS01 || hidden -> true || shareRoot -> true || rootShareName -> ASIAMP08K	|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> K:\MP08-K\Homedir\EUR  || fileServerName -> CLUS01FPS01 || hidden -> true || shareRoot -> true || rootShareName -> EURMP08K		|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> K:\MP08-K\Homedir\NA   || fileServerName -> CLUS01FPS01 || hidden -> true || shareRoot -> true || rootShareName -> NAMP08K		|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> K:\MP09-K\Homedir\ASIA || fileServerName -> CLUS01FPS01 || hidden -> true || shareRoot -> true || rootShareName -> ASIAMP09K	|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> K:\MP09-K\Homedir\EUR  || fileServerName -> CLUS01FPS01 || hidden -> true || shareRoot -> true || rootShareName -> EURMP09K		|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> K:\MP09-K\Homedir\NA   || fileServerName -> CLUS01FPS01 || hidden -> true || shareRoot -> true || rootShareName -> NAMP09K		|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> K:\MP11-K\Homedir\ASIA || fileServerName -> CLUS01FPS01 || hidden -> true || shareRoot -> true || rootShareName -> ASIAMP11K	|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> K:\MP11-K\Homedir\EUR  || fileServerName -> CLUS01FPS01 || hidden -> true || shareRoot -> true || rootShareName -> EURMP11K		|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> K:\MP11-K\Homedir\NA   || fileServerName -> CLUS01FPS01 || hidden -> true || shareRoot -> true || rootShareName -> NAMP11K		|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> K:\MP12-K\Homedir\ASIA || fileServerName -> CLUS01FPS01 || hidden -> true || shareRoot -> true || rootShareName -> ASIAMP12K	|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> K:\MP12-K\Homedir\EUR  || fileServerName -> CLUS01FPS01 || hidden -> true || shareRoot -> true || rootShareName -> EURMP12K		|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> K:\MP12-K\Homedir\NA   || fileServerName -> CLUS01FPS01 || hidden -> true || shareRoot -> true || rootShareName -> NAMP12K		|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> K:\MP13-K\Homedir\ASIA || fileServerName -> CLUS01FPS01 || hidden -> true || shareRoot -> true || rootShareName -> ASIAMP13K	|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> K:\MP13-K\Homedir\EUR  || fileServerName -> CLUS01FPS01 || hidden -> true || shareRoot -> true || rootShareName -> EURMP13K		|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> K:\MP13-K\Homedir\NA   || fileServerName -> CLUS01FPS01 || hidden -> true || shareRoot -> true || rootShareName -> NAMP13K		|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> K:\MP14-K\Homedir\ASIA || fileServerName -> CLUS01FPS01 || hidden -> true || shareRoot -> true || rootShareName -> ASIAMP14K	|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> K:\MP14-K\Homedir\EUR  || fileServerName -> CLUS01FPS01 || hidden -> true || shareRoot -> true || rootShareName -> EURMP14K		|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> K:\MP14-K\Homedir\NA   || fileServerName -> CLUS01FPS01 || hidden -> true || shareRoot -> true || rootShareName -> NAMP14K		|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+
+#### HSM Shares
+share	|| path -> k:\hsm01-k\hsm01-k || shareName -> HSM01K || hidden -> false || fileServerName -> CLUS01FPS01
+share	|| path -> k:\hsm02-k\hsm02-k || shareName -> HSM02K || hidden -> false || fileServerName -> CLUS01FPS01
+share	|| path -> k:\hsm03-k\hsm03-k || shareName -> HSM03K || hidden -> false || fileServerName -> CLUS01FPS01
+share	|| path -> k:\hsm04-k\hsm04-k || shareName -> HSM04K || hidden -> false || fileServerName -> CLUS01FPS01
+share	|| path -> k:\hsm05-k\hsm05-k || shareName -> HSM05K || hidden -> false || fileServerName -> CLUS01FPS01
+share	|| path -> k:\hsm06-k\hsm06-k || shareName -> HSM06K || hidden -> false || fileServerName -> CLUS01FPS01
+share	|| path -> k:\hsm07-k\hsm07-k || shareName -> HSM07K || hidden -> false || fileServerName -> CLUS01FPS01
+share	|| path -> k:\hsm08-k\hsm08-k || shareName -> HSM08K || hidden -> false || fileServerName -> CLUS01FPS01
+share	|| path -> k:\hsm09-k\hsm09-k || shareName -> HSM09K || hidden -> false || fileServerName -> CLUS01FPS01
+share	|| path -> k:\hsm10-k\hsm10-k || shareName -> HSM10K || hidden -> false || fileServerName -> CLUS01FPS01
+share	|| path -> k:\hsm11-k\hsm11-k || shareName -> HSM11K || hidden -> false || fileServerName -> CLUS01FPS01
+share	|| path -> k:\hsm12-k\hsm12-k || shareName -> HSM12K || hidden -> false || fileServerName -> CLUS01FPS01
+share	|| path -> k:\hsm13-k\hsm13-k || shareName -> HSM13K || hidden -> false || fileServerName -> CLUS01FPS01
+share	|| path -> k:\hsm14-k\hsm14-k || shareName -> HSM14K || hidden -> false || fileServerName -> CLUS01FPS01
+share	|| path -> k:\hsm15-k\hsm15-k || shareName -> HSM15K || hidden -> false || fileServerName -> CLUS01FPS01
+share	|| path -> k:\hsm16-k\hsm16-k || shareName -> HSM16K || hidden -> false || fileServerName -> CLUS01FPS01
+share	|| path -> k:\hsm17-k\hsm17-k || shareName -> HSM17K || hidden -> false || fileServerName -> CLUS01FPS01
+share	|| path -> k:\hsm18-k\hsm18-k || shareName -> HSM18K || hidden -> false || fileServerName -> CLUS01FPS01
+share	|| path -> k:\hsm19-k\hsm19-k || shareName -> HSM19K || hidden -> false || fileServerName -> CLUS01FPS01
+share	|| path -> k:\hsm20-k\hsm20-k || shareName -> HSM20K || hidden -> false || fileServerName -> CLUS01FPS01
+share	|| path -> k:\hsmtape01-k\hsmtape01-k || shareName -> hsmtape01k || hidden -> false || fileServerName -> CLUS01FPS01
+
+#### MP shares
+share	|| path -> K:\MP02-K || shareName -> MP02K || hidden -> false || fileServerName -> CLUS01FPS01
+share	|| path -> K:\MP03-K || shareName -> MP03K || hidden -> false || fileServerName -> CLUS01FPS01
+share	|| path -> K:\MP04-K || shareName -> MP04K || hidden -> false || fileServerName -> CLUS01FPS01
+share	|| path -> K:\MP05-K || shareName -> MP05K || hidden -> false || fileServerName -> CLUS01FPS01
+share	|| path -> K:\MP06-K || shareName -> MP06K || hidden -> false || fileServerName -> CLUS01FPS01
+share	|| path -> K:\MP08-K || shareName -> MP08K || hidden -> false || fileServerName -> CLUS01FPS01
+share	|| path -> K:\MP09-K || shareName -> MP09K || hidden -> false || fileServerName -> CLUS01FPS01
+share	|| path -> K:\MP11-K || shareName -> MP11K || hidden -> false || fileServerName -> CLUS01FPS01
+share	|| path -> K:\MP12-K || shareName -> MP12K || hidden -> false || fileServerName -> CLUS01FPS01
+share	|| path -> K:\MP13-K || shareName -> MP13K || hidden -> false || fileServerName -> CLUS01FPS01
+share	|| path -> K:\MP14-K || shareName -> MP14K || hidden -> false || fileServerName -> CLUS01FPS01
+
+#
+##
+#### J drive
+##
+#
+
+#### autoshares for J drive
+autoshare || rootDir -> j:\mp03-j\asiabranch			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> AsiaBranch03
+autoshare || rootDir -> j:\mp05-j\asiabranch			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> AsiaBranch05
+autoshare || rootDir -> j:\mp09-j\asiabranch			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> AsiaBranch09
+autoshare || rootDir -> j:\mp11-j\asiabranch			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> AsiaBranch11
+autoshare || rootDir -> j:\mp12-j\asiabranch			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> AsiaBranch12
+autoshare || rootDir -> j:\mp13-j\asiabranch			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> AsiaBranch13
+autoshare || rootDir -> j:\mp04-J\asiabranches			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> AsiaBranches
+autoshare || rootDir -> j:\mp05-j\asiadepartments		|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> AsiaDepartments05
+autoshare || rootDir -> j:\mp08-j\asiadepartments		|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> AsiaDepartments08
+autoshare || rootDir -> j:\mp09-j\asiadepartments		|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> AsiaDepartments09
+autoshare || rootDir -> j:\mp10-j\asiadepartments		|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> AsiaDepartments10
+autoshare || rootDir -> j:\mp11-j\asiadepartments		|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> AsiaDepartments11
+autoshare || rootDir -> j:\mp12-j\asiadepartments		|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> AsiaDepartments12
+autoshare || rootDir -> j:\mp10-j\asiadepartments		|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> AsiaDept10
+autoshare || rootDir -> j:\mp04-j\AsiaTerritory			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> AsiaTerritory04
+autoshare || rootDir -> J:\MP01-J\branchmp01j			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> BranchMP01J
+autoshare || rootDir -> J:\MP02-J\branchmp02j			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> BranchMP02J
+autoshare || rootDir -> J:\MP03-J\branchmp03j			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> BranchMP03J
+autoshare || rootDir -> J:\MP04-J\branchmp04j			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> BranchMP04J
+autoshare || rootDir -> J:\MP05-J\branchmp05j			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> BranchMP05J
+autoshare || rootDir -> J:\MP06-J\branchmp06j			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> BranchMP06J
+autoshare || rootDir -> J:\MP07-J\branchmp07j			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> BranchMP07J
+autoshare || rootDir -> J:\MP08-J\branchmp08j			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> BranchMP08J
+autoshare || rootDir -> J:\MP09-J\branchmp09j			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> BranchMP09J
+autoshare || rootDir -> J:\MP10-J\branchmp10j			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> BranchMP10J
+autoshare || rootDir -> J:\MP11-J\branchmp11j			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> BranchMP11J
+autoshare || rootDir -> J:\MP12-J\branchmp12j			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> BranchMP12J
+autoshare || rootDir -> j:\m07p01-j\departments			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> DeptArch01
+autoshare || rootDir -> j:\m07p02-j\departments			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> DeptArch02
+autoshare || rootDir -> j:\m07p03-j\departments			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> DeptArch03
+autoshare || rootDir -> j:\m07p04-j\departments			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> DeptArch04
+autoshare || rootDir -> j:\m07p05-j\departments			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> DeptArch05
+autoshare || rootDir -> j:\m07p06-j\departments			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> DeptArch06
+autoshare || rootDir -> j:\m07p07-j\departments			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> DeptArch07
+autoshare || rootDir -> j:\m07p08-j\departments			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> DeptArch08
+autoshare || rootDir -> J:\MP01-J\Departments			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> DeptShare01
+autoshare || rootDir -> J:\MP02-J\Departments			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> DeptShare02
+autoshare || rootDir -> J:\MP03-J\Departments			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> DeptShare03
+autoshare || rootDir -> J:\MP04-J\Departments			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> DeptShare04
+autoshare || rootDir -> J:\MP05-J\Departments			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> DeptShare05
+autoshare || rootDir -> J:\MP06-J\Departments			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> DeptShare06
+autoshare || rootDir -> J:\MP07-J\Departments			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> DeptShare07
+autoshare || rootDir -> J:\MP08-J\Departments			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> DeptShare08
+autoshare || rootDir -> J:\MP09-J\Departments			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> DeptShare09
+autoshare || rootDir -> J:\MP10-J\Departments			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> DeptShare10
+autoshare || rootDir -> J:\MP11-J\Departments			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> DeptShare11
+autoshare || rootDir -> J:\MP12-J\Departments			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> DeptShare12
+autoshare || rootDir -> J:\MP13-J\Departments			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> DeptShare13
+autoshare || rootDir -> J:\MP14-J\Departments			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> DeptShare14
+autoshare || rootDir -> j:\mp05-j\eurbranch				|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> EurBranch05
+autoshare || rootDir -> j:\mp06-j\eurbranch				|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> EurBranch06
+autoshare || rootDir -> j:\mp07-j\eurbranch				|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> EurBranch07
+autoshare || rootDir -> j:\mp08-j\eurbranch				|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> EurBranch08
+autoshare || rootDir -> j:\mp09-j\eurbranch				|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> EurBranch09
+autoshare || rootDir -> j:\mp10-j\eurbranch				|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> EurBranch10
+autoshare || rootDir -> j:\mp11-j\eurbranch				|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> EurBranch11
+autoshare || rootDir -> j:\mp12-j\eurbranch				|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> EurBranch12
+autoshare || rootDir -> j:\mp09-j\eurdepartments		|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> EURDepartments09
+autoshare || rootDir -> j:\mp11-j\eurdepartments		|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> EURDepartments11
+autoshare || rootDir -> j:\mp12-j\eurdepartments		|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> EURDepartments12
+autoshare || rootDir -> j:\mp05-j\eurdepartments		|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> EURDeptshare05
+autoshare || rootDir -> j:\mp06-j\eurdepartments		|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> EURDeptshare06
+autoshare || rootDir -> j:\mp07-j\eurdepartments		|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> EURDeptshare07
+autoshare || rootDir -> j:\mp08-j\eurdepartments		|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> EURDeptshare08
+autoshare || rootDir -> j:\mp05-j\EurTerritory			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> EurTerritory05
+autoshare || rootDir -> j:\mp06-j\EurTerritory			|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> EurTerritory06
+autoshare || rootDir -> j:\m07p04-j\inactivehomedirs	|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> InactiveHomedir
+### why are the 2 below autoshares??
+autoshare || rootDir -> J:\mp12-j\departments\Cobol						|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> Cobol
+autoshare || rootDir -> j:\MP01-J\departments\warehouse\distribution	|| fileServerName -> CLUS01FPS02 || hidden -> true || shareRoot -> true || rootShareName -> Distribution
+
+#### normal shares
+share	|| path -> j:\AEG01\AEG											|| shareName -> AEG						|| hidden -> true	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\AEG02\AEG2										|| shareName -> AEG2					|| hidden -> true	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\aeg02\aeg2										|| shareName -> Aegpsoft				|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\MP01-J\departments\it\agent13						|| shareName -> Agent13					|| hidden -> false	|| fileServerName -> CLUS01FPS02		|| shareDescription -> SHARE FOR AGENT 13
+share	|| path -> J:\MP02-J\Departments\TSG\TSG_Asia\FilesNA			|| shareName -> Asiaupt					|| hidden -> true	|| fileServerName -> CLUS01FPS02
+share	|| path -> J:\MP01-J\Departments\IT\AssociatesSQLReports		|| shareName -> AssociatesSQLReports	|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\hsm01-j\hsm01-j									|| shareName -> HSM01J					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\hsm02-j\hsm02-j									|| shareName -> HSM02J					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\hsm03-j\hsm03-j									|| shareName -> HSM03J					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\hsm04-j\hsm04-j									|| shareName -> HSM04J					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\hsm05-j\hsm05-j									|| shareName -> HSM05J					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\hsm06-j\hsm06-j									|| shareName -> HSM06J					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\hsm07-j\hsm07-j									|| shareName -> HSM07J					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\hsm08-j\hsm08-j									|| shareName -> HSM08J					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\hsm09-j\hsm09-j									|| shareName -> HSM09J					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\hsm10-j\hsm10-j									|| shareName -> HSM10J					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\hsm11-j\hsm11-j									|| shareName -> HSM11J					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\hsm12-j\hsm12-j									|| shareName -> HSM12J					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\hsm13-j\hsm13-j									|| shareName -> HSM13J					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\hsm14-j\hsm14-j									|| shareName -> HSM14J					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\hsm15-j\hsm15-j									|| shareName -> HSM15J					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\hsm16-j\hsm16-j									|| shareName -> HSM16J					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\hsm17-j\hsm17-j									|| shareName -> HSM17J					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\hsm18-j\hsm18-j									|| shareName -> HSM18J					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\hsm19-j\hsm19-j									|| shareName -> HSM19J					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\hsm20-j\hsm20-j									|| shareName -> HSM20J					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\hsm21-j\hsm21-j									|| shareName -> HSM21J					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\M07P01-J\M07P01-J									|| shareName -> M07P01J					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\M07P02-J\M07P02-J									|| shareName -> M07P02J					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\M07P03-J\M07P03-J									|| shareName -> M07P03J					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\M07P04-J\M07P04-J									|| shareName -> M07P04J					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\M07P05-J\M07P05-J									|| shareName -> M07P05J					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\M07P06-J\M07P06-J									|| shareName -> M07P06J					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\M07P07-J\M07P07-J									|| shareName -> M07P07J					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\M07P08-J\M07P08-J									|| shareName -> M07P08J					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\MP01-J											|| shareName -> MP01J					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\MP02-J											|| shareName -> MP02J					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\MP03-J											|| shareName -> MP03J					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\MP04-J											|| shareName -> MP04J					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\MP05-J											|| shareName -> MP05J					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\MP06-J											|| shareName -> MP06J					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\MP07-J											|| shareName -> MP07J					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\MP08-J											|| shareName -> MP08J					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\MP09-J											|| shareName -> MP09J					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\MP10-J											|| shareName -> MP10J					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\MP11-J											|| shareName -> MP11J					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\MP12-J											|| shareName -> MP12J					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\MP13-J											|| shareName -> MP13J					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\MP14-J											|| shareName -> MP14J					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> J:\MP06-J\RDSBuilds									|| shareName -> RDSBuilds				|| hidden -> true	|| fileServerName -> CLUS01FPS02	|| shareDescription -> WS08 R2 Future RDS builds source files
+share	|| path -> j:\MP06-J\departments\Signage						|| shareName -> Signage					|| hidden -> true	|| fileServerName -> CLUS01FPS02	|| shareDescription -> Content for signage
+share	|| path -> j:\m07p01-j\departments\TRAXShipments				|| shareName -> TRAX					|| hidden -> true	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\m07p01-j\departments\TRAXShipments				|| shareName -> TRAXShipments			|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> j:\MP02-J\departments\tsg\tsg2						|| shareName -> TSG2					|| hidden -> false	|| fileServerName -> CLUS01FPS02
+share	|| path -> J:\MP01-J\TSWallpaper								|| shareName -> TSWallpaper				|| hidden -> true	|| fileServerName -> CLUS01FPS02
+
+share	|| path -> j:\mp06-j\eurdepartments\share_pt_eur\European Quality Assurance\European Standard Operating Procedures - SOPs	|| shareName -> Europe_Sop	|| hidden -> false	|| fileServerName -> CLUS01FPS02
+
+# M drive on FPS02
+share	|| path -> M:\MADCShare											|| shareName -> MADCShare				|| hidden -> false	|| fileServerName -> CLUS01FPS02
+
+#
+##
+#### L drive
+##
+#
+
+#### Homedir Shares
+autoshare || rootDir -> L:\MP01-L\Homedir\ASIA || fileServerName -> CLUS01FPS03 || hidden -> true || shareRoot -> true || rootShareName -> ASIAMP01L	|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> L:\MP01-L\Homedir\EUR  || fileServerName -> CLUS01FPS03 || hidden -> true || shareRoot -> true || rootShareName -> EURMP01L		|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> L:\MP01-L\Homedir\NA   || fileServerName -> CLUS01FPS03 || hidden -> true || shareRoot -> true || rootShareName -> NAMP01L		|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+
+autoshare || rootDir -> L:\MP02-L\Homedir\ASIA || fileServerName -> CLUS01FPS03 || hidden -> true || shareRoot -> true || rootShareName -> ASIAMP02L	|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> L:\MP02-L\Homedir\EUR  || fileServerName -> CLUS01FPS03 || hidden -> true || shareRoot -> true || rootShareName -> EURMP02L		|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> L:\MP02-L\Homedir\NA   || fileServerName -> CLUS01FPS03 || hidden -> true || shareRoot -> true || rootShareName -> NAMP02L		|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+
+autoshare || rootDir -> L:\MP03-L\Homedir\ASIA || fileServerName -> CLUS01FPS03 || hidden -> true || shareRoot -> true || rootShareName -> ASIAMP03L	|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> L:\MP03-L\Homedir\EUR  || fileServerName -> CLUS01FPS03 || hidden -> true || shareRoot -> true || rootShareName -> EURMP03L		|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> L:\MP03-L\Homedir\NA   || fileServerName -> CLUS01FPS03 || hidden -> true || shareRoot -> true || rootShareName -> NAMP03L		|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+
+autoshare || rootDir -> L:\MP04-L\Homedir\ASIA || fileServerName -> CLUS01FPS03 || hidden -> true || shareRoot -> true || rootShareName -> ASIAMP04L	|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> L:\MP04-L\Homedir\EUR  || fileServerName -> CLUS01FPS03 || hidden -> true || shareRoot -> true || rootShareName -> EURMP04L		|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> L:\MP04-L\Homedir\NA   || fileServerName -> CLUS01FPS03 || hidden -> true || shareRoot -> true || rootShareName -> NAMP04L		|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+
+autoshare || rootDir -> L:\MP05-L\Homedir\ASIA || fileServerName -> CLUS01FPS03 || hidden -> true || shareRoot -> true || rootShareName -> ASIAMP05L	|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> L:\MP05-L\Homedir\EUR  || fileServerName -> CLUS01FPS03 || hidden -> true || shareRoot -> true || rootShareName -> EURMP05L		|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> L:\MP05-L\Homedir\NA   || fileServerName -> CLUS01FPS03 || hidden -> true || shareRoot -> true || rootShareName -> NAMP05L		|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+
+autoshare || rootDir -> L:\MP06-L\Homedir\ASIA || fileServerName -> CLUS01FPS03 || hidden -> true || shareRoot -> true || rootShareName -> ASIAMP06L	|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> L:\MP06-L\Homedir\EUR  || fileServerName -> CLUS01FPS03 || hidden -> true || shareRoot -> true || rootShareName -> EURMP06L		|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> L:\MP06-L\Homedir\NA   || fileServerName -> CLUS01FPS03 || hidden -> true || shareRoot -> true || rootShareName -> NAMP06L		|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+
+autoshare || rootDir -> L:\MP07-L\Homedir\ASIA || fileServerName -> CLUS01FPS03 || hidden -> true || shareRoot -> true || rootShareName -> ASIAMP07L	|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> L:\MP07-L\Homedir\EUR  || fileServerName -> CLUS01FPS03 || hidden -> true || shareRoot -> true || rootShareName -> EURMP07L		|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> L:\MP07-L\Homedir\NA   || fileServerName -> CLUS01FPS03 || hidden -> true || shareRoot -> true || rootShareName -> NAMP07L		|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+
+autoshare || rootDir -> L:\MP08-L\Homedir\ASIA || fileServerName -> CLUS01FPS03 || hidden -> true || shareRoot -> true || rootShareName -> ASIAMP08L	|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> L:\MP08-L\Homedir\EUR  || fileServerName -> CLUS01FPS03 || hidden -> true || shareRoot -> true || rootShareName -> EURMP08L		|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> L:\MP08-L\Homedir\NA   || fileServerName -> CLUS01FPS03 || hidden -> true || shareRoot -> true || rootShareName -> NAMP08L		|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+
+autoshare || rootDir -> L:\MP09-L\Homedir\ASIA || fileServerName -> CLUS01FPS03 || hidden -> true || shareRoot -> true || rootShareName -> ASIAMP09L	|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> L:\MP09-L\Homedir\EUR  || fileServerName -> CLUS01FPS03 || hidden -> true || shareRoot -> true || rootShareName -> EURMP09L		|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> L:\MP09-L\Homedir\NA   || fileServerName -> CLUS01FPS03 || hidden -> true || shareRoot -> true || rootShareName -> NAMP09L		|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+
+autoshare || rootDir -> L:\MP10-L\Homedir\ASIA || fileServerName -> CLUS01FPS03 || hidden -> true || shareRoot -> true || rootShareName -> ASIAMP10L	|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> L:\MP10-L\Homedir\EUR  || fileServerName -> CLUS01FPS03 || hidden -> true || shareRoot -> true || rootShareName -> EURMP10L		|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+autoshare || rootDir -> L:\MP10-L\Homedir\NA   || fileServerName -> CLUS01FPS03 || hidden -> true || shareRoot -> true || rootShareName -> NAMP10L		|| registerdfs -> true		|| dfsroot -> \\clus02dfs\users
+
+#### MP shares
+share	|| path -> L:\MP01-L	|| shareName -> MP01L		|| hidden -> false	|| fileServerName -> CLUS01FPS03
+share	|| path -> L:\MP02-L	|| shareName -> MP02L		|| hidden -> false	|| fileServerName -> CLUS01FPS03
+share	|| path -> L:\MP03-L	|| shareName -> MP03L		|| hidden -> false	|| fileServerName -> CLUS01FPS03
+share	|| path -> L:\MP04-L	|| shareName -> MP04L		|| hidden -> false	|| fileServerName -> CLUS01FPS03
+share	|| path -> L:\MP05-L	|| shareName -> MP05L		|| hidden -> false	|| fileServerName -> CLUS01FPS03
+share	|| path -> L:\MP06-L	|| shareName -> MP06L		|| hidden -> false	|| fileServerName -> CLUS01FPS03
+share	|| path -> L:\MP07-L	|| shareName -> MP07L		|| hidden -> false	|| fileServerName -> CLUS01FPS03
+share	|| path -> L:\MP08-L	|| shareName -> MP08L		|| hidden -> false	|| fileServerName -> CLUS01FPS03
+share	|| path -> L:\MP09-L	|| shareName -> MP09L		|| hidden -> false	|| fileServerName -> CLUS01FPS03
+share	|| path -> L:\MP10-L	|| shareName -> MP10L		|| hidden -> false	|| fileServerName -> CLUS01FPS03
+
+
+#
+##
+#### H drive
+##
+#
+
+share	|| path -> h:\ql	|| shareName -> QL		|| hidden -> false	|| fileServerName -> CLUS01FPS04
